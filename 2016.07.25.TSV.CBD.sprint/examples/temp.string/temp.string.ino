@@ -121,16 +121,17 @@ void loop ()
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
   postData += (",V:" + Volts + ",CH:" + CHstatus);                  //append it to the post data
 
+  Serial.println(postData);
   debugSerial.println(postData);                                    //for debugging purposes, show the data
 
-  PostData(postData);                                               // post the data to the lora network
+  //PostData(postData);                                               // post the data to the lora network
   
   RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
   RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());     // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, LOW);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
 
   ////////////////// Application finished... put to sleep ///////////////////
-  
+  /*
   //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Down routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
         
   //Power Down routines
@@ -147,7 +148,7 @@ void loop ()
   sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
   
   /* WAIT FOR INTERUPT */
- 
+ /*
   //wake up the system
   sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
   power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
@@ -155,7 +156,7 @@ void loop ()
   debugSerial.println("Awake from sleep");  //debug: print the system is awake 
   
   //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Saver routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
- 
+ */
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
