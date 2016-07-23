@@ -27,22 +27,23 @@ DS3231 RTC;                             // Create the DS3231 RTC interface objec
 static DateTime interruptTime;          // this is the time to interupt sleep
 
 /*one wire temperature*/
-OneWire oneWire0(4);          // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire1(7);          // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire2(8);          // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire0(4);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire1(7);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire2(8);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
 DallasTemperature sensor0(&oneWire0);    // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensor1(&oneWire1);    // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensor2(&oneWire2);    // Pass our oneWire reference to Dallas Temperature.
 
-DeviceAddress Add0 = {0x28, 0x6A, 0x37, 0x08, 0x03, 0x00, 0x00, 0x3F};
+/* these are the addresses to the DS18b20s */
+DeviceAddress Add0 = {0x28, 0x6A, 0x37, 0x08, 0x03, 0x00, 0x00, 0x3F}; //closest sensor
 DeviceAddress Add1 = {0x28, 0xD6, 0xE4, 0xE1, 0x06, 0x00, 0x00, 0xBA};
 DeviceAddress Add2 = {0x28, 0x7B, 0xD8, 0xCA, 0x06, 0x00, 0x00, 0xED};
 DeviceAddress Add3 = {0x28, 0xDB, 0x6D, 0xCB, 0x06, 0x00, 0x00, 0xA3};
 DeviceAddress Add4 = {0x28, 0x27, 0x48, 0xCC, 0x06, 0x00, 0x00, 0x00};
 DeviceAddress Add5 = {0x28, 0xBC, 0x95, 0xCA, 0x06, 0x00, 0x00, 0xF2};
 DeviceAddress Add6 = {0x28, 0xB0, 0x58, 0xCC, 0x06, 0x00, 0x00, 0x48};
-DeviceAddress Add7 = {0x28, 0x64, 0x18, 0xCC, 0x06, 0x00, 0x00, 0xB9};
+DeviceAddress Add7 = {0x28, 0x64, 0x18, 0xCC, 0x06, 0x00, 0x00, 0xB9}; //furthest sensor
 
 // setup the start
 void setup() {
@@ -72,41 +73,54 @@ void setup() {
   DateTime start = RTC.now();                   //get the current time
   interruptTime = DateTime(start.get() + 300);  //Add 5 mins in seconds to start time
 
+  /* start the radio */
+  digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
+  delay(1000);                                  // allow radio to power up
+  do {                                          //join the lora network
+    responseCode = mdot.join();                 //join the network and get the response code
+    //delay(10000);
+  } while (responseCode != 0);                  //continue if it joins
 }
 
 //start the application
 void loop () 
 {
+ 
   ///////////////// START the application ////////////////////////////
+  char postDataChar[100];                       // initialize a string array for posting data
+  String postData;                              // this is what we use to hold data to post
   
-  String postData = ("");                                           //define the initial post data
-
   /* CHANGE THIS SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
-    //Read Sensor 0
-    sensor0.requestTemperatures();
-    sensor1.requestTemperatures();
-    sensor2.requestTemperatures();
-    
-    //Collect data
-    postData += ("T0:" + String(sensor0.getTempC(Add0)) + ",T1:" + String(sensor0.getTempC(Add1)));
-    postData += (",T2:" + String(sensor0.getTempC(Add2)) + ",T3:" + String(sensor1.getTempC(Add3)));
-    postData += (",T4:" + String(sensor1.getTempC(Add4)) + ",T5:" + String(sensor1.getTempC(Add5)));
-    postData += (",T6:" + String(sensor2.getTempC(Add6)) + ",T7:" + String(sensor2.getTempC(Add7)));
+  //Read Sensor 0
+  sensor0.requestTemperatures();
+  sensor1.requestTemperatures();
+  sensor2.requestTemperatures();
+  
+  //Collect data
+  postData = ("T0:" + String(sensor0.getTempC(Add0)) + ",T1:" + String(sensor0.getTempC(Add1)));
+  postData += (",T2:" + String(sensor0.getTempC(Add2)) + ",T3:" + String(sensor1.getTempC(Add3)));
+  postData.toCharArray(postDataChar,99);                            //convert string to char array
+  responseCode = mdot.sendPairs(postDataChar);                      // post the data
+  
+  postData = ("T4:" + String(sensor1.getTempC(Add4)) + ",T5:" + String(sensor1.getTempC(Add5)));
+  postData += (",T6:" + String(sensor2.getTempC(Add6)) + ",T7:" + String(sensor2.getTempC(Add7)));
+  postData.toCharArray(postDataChar,99);                            //convert string to char array
+  responseCode = mdot.sendPairs(postDataChar);                      // post the data
+      
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
-  String BT = String(RTC.getTemperature());                         //get the temp in the box
-  postData += (",BT:" + BT);                                        //append the temp in the box
-  String CHstatus = String(read_charge_status());                   //read the charge status
+  postData = ("BT:" + String(RTC.getTemperature()));                //append the temp in the box
+  postData += (",CH:" + String(read_charge_status()));              //append the charge status
   int BatteryValue = analogRead(A7);                                // read the battery voltage
   float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;            //Voltage devider
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
-  postData += (",V:" + Volts + ",CH:" + CHstatus);                  //append it to the post data
+  postData += (",V:" + Volts);                                      //append it to the post data voltage
+  postData.toCharArray(postDataChar,99);                            //convert string to char array
+  responseCode = mdot.sendPairs(postDataChar);                      // post the data
 
   //Serial.println(postData);
   debugSerial.println(postData);                                    //for debugging purposes, show the data
 
-  PostData(postData);                                               // post the data to the lora network
-  
   RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
   RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());     // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, LOW);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
@@ -125,6 +139,8 @@ void loop ()
   delay(10);                                //This delay is required to allow print to complete
   
   //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
+  delay(10000);
+  digitalWrite(POWER_BEE, LOW);             //turn the xbee port off -- turn the radio off
   power_all_disable();                      //This shuts down ADC, TWI, SPI, Timers and USART
   sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
   
@@ -134,6 +150,13 @@ void loop ()
   sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
   power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
   delay(10);                                //This delay is required to allow CPU to stabilize
+  digitalWrite(POWER_BEE, HIGH);            //turn the xbee port on -- turn on the radio
+  delay(1000);                              // allow radio to power up
+  do {                                      //join the lora network
+    responseCode = mdot.join();             //join the network and get the response code
+    //delay(10000);
+  } while (responseCode != 0);              //continue if it joins
+
   debugSerial.println("Awake from sleep");  //debug: print the system is awake 
   
   //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Saver routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
@@ -146,26 +169,6 @@ void INT0_ISR()
   //Keep this as short as possible. Possibly avoid using function calls
   detachInterrupt(0); 
   interruptTime = DateTime(interruptTime.get() + 300);  //decide the time for next interrupt, configure next interrupt  
-}
-
-
-//this is the setup to post data
-void PostData(String str2post) {
-  digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
-  delay(1000);                          // allow radio to power up
-  do {                                  //join the lora network
-    responseCode = mdot.join();         //join the network and get the response code
-    delay(10000);
-  } while (responseCode != 0);          //continue if it joins
-
-  char postDataChar[100];                       // initialize a string array for posting data
-  str2post.toCharArray(postDataChar,99);        //convert string to char array
-  responseCode = mdot.sendPairs(postDataChar);  // post the data
-
-  delay(10000);
-  debugSerial.println("posted");                // debugging: desplay the data was posted
-    
-  digitalWrite(POWER_BEE, LOW);         //turn the xbee port off -- turn the radio off
 }
 
 //get the charging status
