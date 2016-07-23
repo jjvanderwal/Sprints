@@ -9,7 +9,7 @@
 OneWire  ds(3);  // Connect your 1-wire device to pin 3
 
 void setup(void) {
-  Serial.begin(9600);
+  Serial.begin(38400);
   discoverOneWireDevices();
 }
 
