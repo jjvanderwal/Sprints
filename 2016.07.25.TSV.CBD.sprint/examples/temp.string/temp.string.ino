@@ -42,14 +42,15 @@ DallasTemperature sensor2(&oneWire2);    // Pass our oneWire reference to Dallas
 DallasTemperature sensor3(&oneWire3);    // Pass our oneWire reference to Dallas Temperature.
 int deviceCount;                        //this is for a device count -- re
 
-uint8_t* Add0 = 0;
-uint8_t* Add1 = 0;
-uint8_t* Add2 = 0;
-uint8_t* Add3 = 0;
-uint8_t* Add4 = 0;
-uint8_t* Add5 = 0;
-uint8_t* Add6 = 0;
-uint8_t* Add7 = 0;
+DeviceAddress Add0 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add1 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add2 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add3 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add4 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add5 = {0x28,0x27,0x48,0xCC,0x06,0x00,0x00,0x00};
+DeviceAddress Add6 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+DeviceAddress Add7 = {0x28,0xBC,0x95,0xCA,0x06,0x00,0x00,0xF2};
+
 
 // setup the start
 void setup() {
@@ -91,28 +92,24 @@ void loop ()
 
   /* CHANGE THIS SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
     //Read Sensor 0
-    sensor0.requestTemperaturesByAddress(Add0);
+    sensor0.requestTemperatures();
     float t0= sensor0.getTempC(Add0);
-    sensor0.requestTemperaturesByAddress(Add1);
     float t1= sensor0.getTempC(Add1);
-    sensor1.requestTemperaturesByAddress(Add2);
+    sensor1.requestTemperatures();
     float t2= sensor1.getTempC(Add2);
-    sensor1.requestTemperaturesByAddress(Add3);
     float t3= sensor1.getTempC(Add3);
-    sensor2.requestTemperaturesByAddress(Add4);
+    sensor2.requestTemperatures();
     float t4= sensor2.getTempC(Add4);
-    sensor2.requestTemperaturesByAddress(Add5);
     float t5= sensor2.getTempC(Add5);
-    sensor3.requestTemperaturesByAddress(Add6);
+    sensor3.requestTemperatures();
     float t6= sensor3.getTempC(Add6);
-    sensor3.requestTemperaturesByAddress(Add7);
     float t7= sensor3.getTempC(Add7);
     
     //Collect data
-    postData += ("Temp 0:" + String(t0) + ",Temp 1:" + String(t1));
-    postData += (",Temp 2:" + String(t2) + ",Temp 3:" + String(t3));
-    postData += (",Temp 4:" + String(t4) + ",Temp 5:" + String(t5));
-    postData += (",Temp 6:" + String(t6) + ",Temp 7:" + String(t7));
+    postData += ("T0:" + String(t0) + ",T1:" + String(t1));
+    postData += (",T2:" + String(t2) + ",T3:" + String(t3));
+    postData += (",T4:" + String(t4) + ",T5:" + String(t5));
+    postData += (",T6:" + String(t6) + ",T7:" + String(t7));
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
   String CHstatus = String(read_charge_status());                   //read the charge status
