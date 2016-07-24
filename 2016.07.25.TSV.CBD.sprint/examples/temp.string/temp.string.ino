@@ -80,6 +80,7 @@ void loop ()
 {
  
   ///////////////// START the application ////////////////////////////
+  
   String postData;                              // this is what we use to hold data to post
   
   /* CHANGE THIS SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
@@ -109,7 +110,6 @@ void loop ()
   postData += (",V:" + Volts);                                      //append it to the post data voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                      // post the data
-
 
   ////////////////// Application finished... put to sleep ///////////////////
   SleepNow();
