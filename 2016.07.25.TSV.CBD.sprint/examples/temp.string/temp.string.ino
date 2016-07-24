@@ -65,12 +65,9 @@ void setup() {
   /*Initialize INTR0 for accepting interrupts */
   PORTD |= 0x04; 
   DDRD &=~ 0x04;
-  //pinMode(4,INPUT);                     //extern power
  
   Wire.begin();    
   RTC.begin();
-  //attachInterrupt(0, INT0_ISR, LOW); 
-  //set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   
   DateTime start = RTC.now();                   //get the current time
   interruptTime = DateTime(start.get() + 60);  //Add 5 mins in seconds to start time
@@ -83,7 +80,6 @@ void loop ()
 {
  
   ///////////////// START the application ////////////////////////////
-  char postDataChar[100];                       // initialize a string array for posting data
   String postData;                              // this is what we use to hold data to post
   
   /* CHANGE THIS SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
@@ -96,14 +92,12 @@ void loop ()
   postData = ("T0:" + String(sensor0.getTempC(Add0)) + ",T1:" + String(sensor0.getTempC(Add1)));
   postData += (",T2:" + String(sensor0.getTempC(Add2)) + ",T3:" + String(sensor1.getTempC(Add3)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
-  postData.toCharArray(postDataChar,99);                            //convert string to char array
-  responseCode = mdot.sendPairs(postDataChar);                      // post the data
+  responseCode = mdot.sendPairs(postData);                      // post the data
   
   postData = ("T4:" + String(sensor1.getTempC(Add4)) + ",T5:" + String(sensor1.getTempC(Add5)));
   postData += (",T6:" + String(sensor2.getTempC(Add6)) + ",T7:" + String(sensor2.getTempC(Add7)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
-  postData.toCharArray(postDataChar,99);                            //convert string to char array
-  responseCode = mdot.sendPairs(postDataChar);                      // post the data
+  responseCode = mdot.sendPairs(postData);                      // post the data
       
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
@@ -114,14 +108,11 @@ void loop ()
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
   postData += (",V:" + Volts);                                      //append it to the post data voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
-  postData.toCharArray(postDataChar,99);                            //convert string to char array
-  responseCode = mdot.sendPairs(postDataChar);                      // post the data
+  responseCode = mdot.sendPairs(postData);                      // post the data
 
 
   ////////////////// Application finished... put to sleep ///////////////////
   SleepNow();
-
-
 
 } 
 
@@ -135,7 +126,8 @@ void INT0_ISR()
 
 //define the sleepnow function
 void SleepNow() {
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+  debugSerial.println("\nSleeping");        //debug: print the system is going to sleep
+  set_sleep_mode(SLEEP_MODE_PWR_SAVE);   // sleep mode is set here
   sleep_enable();          // enables the sleep bit in the mcucr register
   //setup the interupt for sleep
   RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
@@ -148,49 +140,8 @@ void SleepNow() {
   //detachInterrupt(0);      // disables interrupt 0 on pin 2 so the
                              // wakeUpNow code will not be executed
                              // during normal running time.
- 
-
-
-  /*
-   * 
-  delay(5000);
-  digitalWrite(POWER_BEE, LOW);             //turn the xbee port off -- turn the radio off
-  delay(10000);
-  JoinLora();                               //start and join the lora network
-  delay(1000); 
-  */
-  /*
-  //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Down routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-        
-  //Power Down routines
-  cli(); 
-  sleep_enable();                           // Set sleep enable bit
-  sleep_bod_disable();                      // Disable brown out detection during sleep. Saves more power
-  sei();
-    
-  debugSerial.println("\nSleeping");        //debug: print the system is going to sleep
-  delay(10);                                //This delay is required to allow print to complete
-  
-  //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
-  delay(5000);
-  power_all_disable();                      //This shuts down ADC, TWI, SPI, Timers and USART
-  sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
-  
-  /// WAIT FOR INTERUPT
- 
-  //wake up the system
-  sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
-  power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
-  delay(1000);                                //This delay is required to allow CPU to stabilize
-  debugSerial.println("Awake from sleep");  //debug: print the system is awake 
-  
-  //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Saver routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
- */
-
-  
+  debugSerial.println("Awake from sleep");  //debug: print the system is awake
 }
-
-
 
 //start and join the lora network
 void JoinLora() {
