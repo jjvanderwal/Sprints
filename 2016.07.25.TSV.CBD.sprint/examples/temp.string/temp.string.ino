@@ -3,12 +3,14 @@
   * drafted by Dylan VanDerWal (dylanjvanderwal@gmail.com)
   * code is writen to work with the stalker 2.3 board with a mdot lorawan module on the xbee 
   * GNU General Public License .. feel free to use / distribute ... no warranties
+  * 
+  * pin D5 is used to power on and off the radio
+  * 
 */
 //common libraries
 #include <LoRaAT.h>                     //Include LoRa AT libraray
 #include <SoftwareSerial.h>             //Software serial for debug
 #include <avr/sleep.h>                  // this is for low power sleep
-#include <avr/power.h>                  // this is for low power sleep
 #include <Wire.h>                       // required for sleep/low power
 #include "DS3231.h"                     // RTC
 #include <math.h>                       // required for rounding some of the data from the analog readout of the battery
@@ -27,9 +29,9 @@ DS3231 RTC;                             // Create the DS3231 RTC interface objec
 static DateTime interruptTime;          // this is the time to interupt sleep
 
 /*one wire temperature*/
-OneWire oneWire0(4);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire1(7);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire2(8);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire0(7);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire1(8);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire2(12);                    // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
 DallasTemperature sensor0(&oneWire0);    // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensor1(&oneWire1);    // Pass our oneWire reference to Dallas Temperature.
@@ -63,25 +65,19 @@ void setup() {
   /*Initialize INTR0 for accepting interrupts */
   PORTD |= 0x04; 
   DDRD &=~ 0x04;
-  pinMode(4,INPUT);                     //extern power
-  
+  //pinMode(4,INPUT);                     //extern power
+ 
   Wire.begin();    
   RTC.begin();
-  attachInterrupt(0, INT0_ISR, LOW); 
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  //attachInterrupt(0, INT0_ISR, LOW); 
+  //set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   
   DateTime start = RTC.now();                   //get the current time
-  interruptTime = DateTime(start.get() + 300);  //Add 5 mins in seconds to start time
+  interruptTime = DateTime(start.get() + 60);  //Add 5 mins in seconds to start time
 
-  /* start the radio */
-  digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
-  delay(1000);                                  // allow radio to power up
-  do {                                          //join the lora network
-    responseCode = mdot.join();                 //join the network and get the response code
-    //delay(10000);
-  } while (responseCode != 0);                  //continue if it joins
+  JoinLora(); //start and join the lora network
 }
-
+  
 //start the application
 void loop () 
 {
@@ -99,11 +95,13 @@ void loop ()
   //Collect data
   postData = ("T0:" + String(sensor0.getTempC(Add0)) + ",T1:" + String(sensor0.getTempC(Add1)));
   postData += (",T2:" + String(sensor0.getTempC(Add2)) + ",T3:" + String(sensor1.getTempC(Add3)));
+  debugSerial.println(postData);                                    //for debugging purposes, show the data
   postData.toCharArray(postDataChar,99);                            //convert string to char array
   responseCode = mdot.sendPairs(postDataChar);                      // post the data
   
   postData = ("T4:" + String(sensor1.getTempC(Add4)) + ",T5:" + String(sensor1.getTempC(Add5)));
   postData += (",T6:" + String(sensor2.getTempC(Add6)) + ",T7:" + String(sensor2.getTempC(Add7)));
+  debugSerial.println(postData);                                    //for debugging purposes, show the data
   postData.toCharArray(postDataChar,99);                            //convert string to char array
   responseCode = mdot.sendPairs(postDataChar);                      // post the data
       
@@ -115,18 +113,53 @@ void loop ()
   float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;            //Voltage devider
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
   postData += (",V:" + Volts);                                      //append it to the post data voltage
+  debugSerial.println(postData);                                    //for debugging purposes, show the data
   postData.toCharArray(postDataChar,99);                            //convert string to char array
   responseCode = mdot.sendPairs(postDataChar);                      // post the data
 
-  //Serial.println(postData);
-  debugSerial.println(postData);                                    //for debugging purposes, show the data
 
+  ////////////////// Application finished... put to sleep ///////////////////
+  SleepNow();
+
+
+
+} 
+
+//Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
+void INT0_ISR()
+{
+  //Keep this as short as possible. Possibly avoid using function calls
+  detachInterrupt(0); 
+  interruptTime = DateTime(interruptTime.get() + 60);  //decide the time for next interrupt, configure next interrupt  
+}
+
+//define the sleepnow function
+void SleepNow() {
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+  sleep_enable();          // enables the sleep bit in the mcucr register
+  //setup the interupt for sleep
   RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
   RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());     // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, LOW);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
+  sleep_mode();            // here the device is actually put to sleep!!
+                             // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+  sleep_disable();         // first thing after waking from sleep:
+                             // disable sleep...
+  //detachInterrupt(0);      // disables interrupt 0 on pin 2 so the
+                             // wakeUpNow code will not be executed
+                             // during normal running time.
+ 
 
-  ////////////////// Application finished... put to sleep ///////////////////
-  
+
+  /*
+   * 
+  delay(5000);
+  digitalWrite(POWER_BEE, LOW);             //turn the xbee port off -- turn the radio off
+  delay(10000);
+  JoinLora();                               //start and join the lora network
+  delay(1000); 
+  */
+  /*
   //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Down routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
         
   //Power Down routines
@@ -139,37 +172,36 @@ void loop ()
   delay(10);                                //This delay is required to allow print to complete
   
   //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
-  delay(10000);
-  digitalWrite(POWER_BEE, LOW);             //turn the xbee port off -- turn the radio off
+  delay(5000);
   power_all_disable();                      //This shuts down ADC, TWI, SPI, Timers and USART
   sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
   
-  /* WAIT FOR INTERUPT */
+  /// WAIT FOR INTERUPT
  
   //wake up the system
   sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
   power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
-  delay(10);                                //This delay is required to allow CPU to stabilize
-  digitalWrite(POWER_BEE, HIGH);            //turn the xbee port on -- turn on the radio
-  delay(1000);                              // allow radio to power up
-  do {                                      //join the lora network
-    responseCode = mdot.join();             //join the network and get the response code
-    //delay(10000);
-  } while (responseCode != 0);              //continue if it joins
-
+  delay(1000);                                //This delay is required to allow CPU to stabilize
   debugSerial.println("Awake from sleep");  //debug: print the system is awake 
   
   //\/\/\/\/\/\/\/\/\/\/\/\/Sleep Mode and Power Saver routines\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
- 
-} 
+ */
 
-//Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
-void INT0_ISR()
-{
-  //Keep this as short as possible. Possibly avoid using function calls
-  detachInterrupt(0); 
-  interruptTime = DateTime(interruptTime.get() + 300);  //decide the time for next interrupt, configure next interrupt  
+  
 }
+
+
+
+//start and join the lora network
+void JoinLora() {
+  /* start the radio */
+  digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
+  delay(1000);                                  // allow radio to power up
+  do {                                          //join the lora network
+    responseCode = mdot.join();                 //join the network and get the response code
+  } while (responseCode != 0);                  //continue if it joins
+}
+
 
 //get the charging status
 unsigned char read_charge_status(void) {
