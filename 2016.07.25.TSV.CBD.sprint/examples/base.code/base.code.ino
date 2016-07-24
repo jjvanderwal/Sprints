@@ -3,6 +3,17 @@
   * drafted by Dylan VanDerWal (dylanjvanderwal@gmail.com)
   * code is writen to work with the stalker 2.3 board with a mdot lorawan module on the xbee 
   * GNU General Public License .. feel free to use / distribute ... no warranties
+  * 
+  * Pin D5 - powers up/down xbee slot
+  * Pin D2 - interupt to allow sleep
+  * Pin A6 - defines the charging state
+  * Pin A7 - define the battery voltage
+  * 
+  * //Sensor Pin Definitions
+  * 
+  * 
+  * 
+  * 
 */
 //common libraries
 #include <LoRaAT.h>                     //Include LoRa AT libraray
@@ -52,11 +63,12 @@ void setup() {
 
   attachInterrupt(0, INT0_ISR, FALLING); //Only LOW level interrupt can wake up from PWR_DOWN
     
-  DateTime start = RTC.now();                   //get the current time
-  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
-  interruptTime = DateTime(start.get() + 60);  //Add 5 mins in seconds to start time
+  DateTime start = RTC.now();                                                                       //get the current time
+  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));  //debug: print the current time
+  interruptTime = DateTime(start.get() + 300);                                                       //Add 5 mins in seconds to start time
 
-  JoinLora(); //start and join the lora network
+  //start the lora network
+  JoinLora();                            //start and join the lora network
 }
 
 //start the application
@@ -75,22 +87,21 @@ void loop ()
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
   postData = ("BT:" + String(RTC.getTemperature())+ ",CH:" + String(read_charge_status()) +",V:" + Volts);   //append it to the post data -- internal temperature, charging status, & voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
-  responseCode = mdot.sendPairs(postData);                      // post the data
+  responseCode = mdot.sendPairs(postData);                          // post the data
 
   ////////////////// Application finished... put to sleep ///////////////////
    //setup the interupt for sleep
-  RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
-  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());     // set the interrupt at (h,m,s)
+  RTC.clearINTStatus();                                                                             //This function call is  a must to bring /INT pin HIGH after an interrupt.
+  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
 
-  debugSerial.println("Free ram:"+String(freeRam()));
-  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
+  debugSerial.println("Free ram:"+String(freeRam()));                                                                        //debug: print amount of free ram
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
   SleepNow();
-  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
-  DateTime start = RTC.now();                   //get the current time
-  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
-  interruptTime = DateTime(interruptTime.get() + 60);  //decide the time for next interrupt, configure next interrupt  
-
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
+  DateTime start = RTC.now();                                                                                               //get the current time
+  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));                          //debug: print time
+  interruptTime = DateTime(interruptTime.get() + 60);                                                                       //decide the time for next interrupt, configure next interrupt  
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
@@ -106,8 +117,8 @@ void SleepNow() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   
   //Power Down routines
-  digitalWrite(POWER_BEE, LOW);                //turn the xbee port oFF -- turn on the radio
-  delay(1000);                                  // allow radio to power down
+  digitalWrite(POWER_BEE, LOW);             //turn the xbee port oFF -- turn on the radio
+  delay(1000);                              // allow radio to power down
   
   cli(); 
   sleep_enable();                           // Set sleep enable bit
@@ -139,7 +150,6 @@ int freeRam () {
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
-
 
 //start and join the lora network
 void JoinLora() {
