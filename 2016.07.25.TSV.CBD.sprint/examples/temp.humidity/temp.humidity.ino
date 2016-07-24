@@ -3,6 +3,18 @@
   * drafted by Dylan VanDerWal (dylanjvanderwal@gmail.com)
   * code is writen to work with the stalker 2.3 board with a mdot lorawan module on the xbee 
   * GNU General Public License .. feel free to use / distribute ... no warranties
+  * 
+  * Pin D5 - powers up/down xbee slot
+  * Pin D2 - interupt to allow sleep
+  * Pin A6 - defines the charging state
+  * Pin A7 - define the battery voltage
+  * 
+  * //Sensor Pin Definitions
+  * Pins D7 - DHT11 sensor
+  * Pins D8 - DHT11 sensor
+  * Pins D9 - DHT11 sensor
+  * Pins D12 - DHT11 sensor
+  * 
 */
 //common libraries
 #include <LoRaAT.h>                     //Include LoRa AT libraray
@@ -26,32 +38,20 @@ int responseCode;                       //define the responsecode for joining th
 DS3231 RTC;                             // Create the DS3231 RTC interface object
 static DateTime interruptTime;          // this is the time to interupt sleep
 
-//DHT requirements
-#define DHTPIN0 8       //Defines where the dht is located
-#define DHTPIN1 9       //Defines where the dht is located
-#define DHTPIN2 12      //Defines where the dht is located
-#define DHTPIN3 13      //Defines where the dht is located
-
-// Uncomment whatever type you're using!
-#define DHTTYPE DHT11   // DHT 11
-
-// Initialize DHT sensor.
-// Note that older versions of this library took an optional third parameter to
-// tweak the timings for faster processors.  This parameter is no longer needed
-// as the current DHT reading algorithm adjusts itself to work on faster procs.
-DHT dht0(DHTPIN0, DHTTYPE);
-DHT dht1(DHTPIN1, DHTTYPE);
-DHT dht2(DHTPIN2, DHTTYPE);
-DHT dht3(DHTPIN3, DHTTYPE);
+/* sensor specific preparation */
+DHT dht0(7, DHT11);
+DHT dht1(8, DHT11);
+DHT dht2(9, DHT11);
+DHT dht3(12, DHT11);
 
 // setup the start
 void setup() {
-
-   /* CHANGE THIS SECTION TO EDIT SENSOR INITIALIZATION */ 
-    dht0.begin();
-    dht1.begin();
-    dht2.begin();
-    dht3.begin();
+                                                 
+  /* CHANGE THIS SECTION TO EDIT SENSOR INITIALIZATION */ 
+  dht0.begin();
+  dht1.begin();
+  dht2.begin();
+  dht3.begin();
   /* END OF SECTION TO EDIT SENSOR INITIALIZATION */ 
                                                  
   /*setup serial ports for sending data and debugging issues*/
@@ -61,18 +61,21 @@ void setup() {
   /*misc setup for low power sleep*/
   pinMode(POWER_BEE, OUTPUT);           //set the pinmode to turn on and off the power to the radio
 
-
   /*Initialize INTR0 for accepting interrupts */
   PORTD |= 0x04; 
   DDRD &=~ 0x04;
   
   Wire.begin();    
   RTC.begin();
-    
-  DateTime start = RTC.now();                   //get the current time
-  interruptTime = DateTime(start.get() + 60);  //Add 5 mins in seconds to start time
 
-  JoinLora(); //start and join the lora network
+  attachInterrupt(0, INT0_ISR, FALLING); //Only LOW level interrupt can wake up from PWR_DOWN
+    
+  DateTime start = RTC.now();                                                                       //get the current time
+  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));  //debug: print the current time
+  interruptTime = DateTime(start.get() + 300);                                                       //Add 5 mins in seconds to start time
+
+  //start the lora network
+  JoinLora();                            //start and join the lora network
 }
 
 //start the application
@@ -83,31 +86,37 @@ void loop ()
   String postData;                                           //define the initial post data
 
   /* CHANGE THIS SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
-
       postData = ("T0:" + String(dht0.readTemperature()) + ",H0:" + String(dht0.readHumidity()));
       postData += (",T1:" + String(dht1.readTemperature()) + ",H1:" + String(dht1.readHumidity()));
       debugSerial.println(postData);                                    //for debugging purposes, show the data
-      responseCode = mdot.sendPairs(postData);                      // post the data
+      responseCode = mdot.sendPairs(postData);                          // post the data
       
       postData = ("T2:" + String(dht2.readTemperature()) + ",H2:" + String(dht2.readHumidity()));
       postData += (",T3:" + String(dht3.readTemperature()) + ",H3:" + String(dht3.readHumidity()));
       debugSerial.println(postData);                                    //for debugging purposes, show the data
-      responseCode = mdot.sendPairs(postData);                      // post the data
-      
+      responseCode = mdot.sendPairs(postData);                          // post the data
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
-  postData = ("BT:" + String(RTC.getTemperature()));                //append the temp in the box
-  postData += (",CH:" + String(read_charge_status()));              //append the charge status
   int BatteryValue = analogRead(A7);                                // read the battery voltage
   float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;            //Voltage devider
   String Volts = String(round(voltage*100)/100);                    //get the voltage 
-  postData += (",V:" + Volts);                                      //append it to the post data voltage
+  postData = ("BT:" + String(RTC.getTemperature())+ ",CH:" + String(read_charge_status()) +",V:" + Volts);   //append it to the post data -- internal temperature, charging status, & voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
-  responseCode = mdot.sendPairs(postData);                      // post the data
+  responseCode = mdot.sendPairs(postData);                          // post the data
 
   ////////////////// Application finished... put to sleep ///////////////////
-  SleepNow();
+   //setup the interupt for sleep
+  RTC.clearINTStatus();                                                                             //This function call is  a must to bring /INT pin HIGH after an interrupt.
+  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         // set the interrupt at (h,m,s)
+  attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
 
+  debugSerial.println("Free ram:"+String(freeRam()));                                                                        //debug: print amount of free ram
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
+  SleepNow();
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
+  DateTime start = RTC.now();                                                                                               //get the current time
+  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));                          //debug: print time
+  interruptTime = DateTime(interruptTime.get() + 60);                                                                       //decide the time for next interrupt, configure next interrupt  
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
@@ -115,27 +124,46 @@ void INT0_ISR()
 {
   //Keep this as short as possible. Possibly avoid using function calls
   detachInterrupt(0); 
-  DateTime start = RTC.now();                   //get the current time
-  interruptTime = DateTime(start.get() + 60); //decide the time for next interrupt, configure next interrupt  
 }
+
 
 //define the sleepnow function
 void SleepNow() {
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  
+  //Power Down routines
+  digitalWrite(POWER_BEE, LOW);             //turn the xbee port oFF -- turn on the radio
+  delay(1000);                              // allow radio to power down
+  
+  cli(); 
+  sleep_enable();                           // Set sleep enable bit
+  sleep_bod_disable();                      // Disable brown out detection during sleep. Saves more power
+  sei();
+    
   debugSerial.println("\nSleeping");        //debug: print the system is going to sleep
-  set_sleep_mode(SLEEP_MODE_PWR_SAVE);   // sleep mode is set here
-  sleep_enable();          // enables the sleep bit in the mcucr register
-  //setup the interupt for sleep
-  RTC.clearINTStatus();                                                                         //This function call is  a must to bring /INT pin HIGH after an interrupt.
-  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());     // set the interrupt at (h,m,s)
-  attachInterrupt(0, INT0_ISR, LOW);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
-  sleep_mode();            // here the device is actually put to sleep!!
-                             // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
-  sleep_disable();         // first thing after waking from sleep:
-                             // disable sleep...
-  //detachInterrupt(0);      // disables interrupt 0 on pin 2 so the
-                             // wakeUpNow code will not be executed
-                             // during normal running time.
-  debugSerial.println("Awake from sleep");  //debug: print the system is awake
+  delay(10);                                //This delay is required to allow print to complete
+  
+  //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
+  power_all_disable();                      //This shuts down ADC, TWI, SPI, Timers and USART
+  sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
+  
+  /* WAIT FOR INTERUPT */
+ 
+  //wake up the system
+  sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
+  power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
+  delay(1000);                                //This delay is required to allow CPU to stabilize
+  JoinLora(); //start and join the lora network
+  delay(1000);
+  debugSerial.println("Awake from sleep");  //debug: print the system is awake 
+
+}
+
+// check ram remaining
+int freeRam () {
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 
 //start and join the lora network
@@ -147,7 +175,6 @@ void JoinLora() {
     responseCode = mdot.join();                 //join the network and get the response code
   } while (responseCode != 0);                  //continue if it joins
 }
-
 
 //get the charging status
 unsigned char read_charge_status(void) {
