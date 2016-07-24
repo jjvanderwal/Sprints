@@ -17,14 +17,36 @@
 
 #include "Arduino.h"
 
+#define _DR0_PAYLOAD_USAGE 11     //Use 11 of 11 available bytes in payload
+#define _DR1_PAYLOAD_USAGE 53     //Use 53 of 53 available bytes in payload
+#define _DR2_PAYLOAD_USAGE 126    //Use 126 of 126 available bytes in payload
+#define _DR3_PAYLOAD_USAGE 126    //Use 126 of 242 available bytes in payload
+#define _DR4_PAYLOAD_USAGE 126    //Use 126 of 242 available bytes in payload
+
+//    static const uint8_t _MAX_FRAGMENTS = 16;
+#define _MAX_FRAGMENTS 10
+#define _PACKET_SIZE 11
+#define _HEADER_SIZE 2
+#define _PAYLOAD_SIZE (_PACKET_SIZE - _HEADER_SIZE)
+#define _HEADER_OFFSET 48         //ASCII offest to start at char = '0'
+
+#define _MAX_PAIRS_SIZE 70
+#define _MAX_MDOT_RESPONSE 100    //Max number of bytes the mdot might return
+#define _MAX_MDOT_COMMAND 100     //TODO: Check against the manual for mDot
+
+
 /*
   Class definition
 */
 class LoRaAT
 {
   public:
+    char networkSessionKey[48] = {'\0'};          //00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00
+    char dataSessionKey[48] = {'\0'};             //00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00
     char networkKey[48] = {'\0'};                 //00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:01
     char networkId[24] = {'\0'};                  //00:00:aa:00:00:00:00:01
+    char deviceId[24] = {'\0'};                   //00-80-00-00-00-00-a9-13
+    char networkAddress[12] = {'\0'};             //00:00:00:00
     char frequencySubBand = '\0';                 //0-8
     char publicNetwork = '\0';                    //0,1
     char dataRate = '\0';                         //0-3
@@ -44,8 +66,9 @@ class LoRaAT
     int8_t send(char*);                           //Generic send command, using AT+SEND
     int8_t send(char*, uint16_t);                 //Use specific timeout.
     int8_t send(char*, uint8_t, uint16_t);        //Use specific message length.
-    int8_t sendPairs(char*);                      //Takes key,value pairs, forms a message, and sends to the LoRa server.
     int8_t sendPairs(String);                     //Takes key,value pairs, forms a message, and sends to the LoRa server.
+    int8_t sendPairs(String*);                    //Takes key,value pairs, forms a message, and sends to the LoRa server.
+    int8_t sendPairs(char*);                      //Takes key,value pairs, forms a message, and sends to the LoRa server.
     int8_t ping();                                //Not yet implemented
 
     int8_t setDefaults();
@@ -61,31 +84,21 @@ class LoRaAT
     int8_t getDataRate();
     int8_t setAdaptiveDataRate(char);
     int8_t getAdaptiveDataRate();
+    int8_t getDeviceId();
+    int8_t getNetworkAddress();
+    int8_t getNetworkSessionKey();
+    int8_t getDataSessionKey();
+    int8_t saveLoraSession();
+    int8_t restoreLoraSession();
     int8_t commitSettings();
 
   private:
-    static const uint8_t _DR0_PAYLOAD_USAGE = 11;     //Use 11 of 11 available bytes in payload
-    static const uint8_t _DR1_PAYLOAD_USAGE = 53;     //Use 53 of 53 available bytes in payload
-    static const uint8_t _DR2_PAYLOAD_USAGE = 126;    //Use 126 of 126 available bytes in payload
-    static const uint8_t _DR3_PAYLOAD_USAGE = 126;    //Use 126 of 242 available bytes in payload
-    static const uint8_t _DR4_PAYLOAD_USAGE = 126;    //Use 126 of 242 available bytes in payload
-
-    static const uint8_t _MAX_FRAGMENTS = 16;
-    static const uint8_t _PACKET_SIZE = 11;
-    static const uint8_t _HEADER_SIZE = 2;
-    static const uint8_t _PAYLOAD_SIZE = _PACKET_SIZE - _HEADER_SIZE;
-    static const uint8_t _HEADER_OFFSET = 48;
-
-    static const uint8_t _MAX_PAIRS_SIZE = 100;
-
     char _txBuffer[_MAX_FRAGMENTS][_PACKET_SIZE];
     uint8_t _txPutter = 0;                        //Number of fragments in buffer. TODO: Replace/rename
 
-    static const uint8_t _MAX_MDOT_RESPONSE = 200;//Max number of bytes the mdot might return
     char _response[_MAX_MDOT_RESPONSE];           //mDot response buffer
     uint8_t _length;                              //Lenght of a response
 
-    static const uint8_t _MAX_MDOT_COMMAND = 150; //TODO: Check against the manual for mDot
     char _command[_MAX_MDOT_COMMAND];
 
     int8_t _sendCommand(char*, char*, char*, char*, char*, uint16_t);
