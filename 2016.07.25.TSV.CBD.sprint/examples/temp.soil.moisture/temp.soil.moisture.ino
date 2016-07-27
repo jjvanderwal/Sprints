@@ -98,10 +98,16 @@ void loop ()
   postData += (",T1:" + String(sensor1.getTempCByIndex(0)) + ",L1:" + String(analogRead(1)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
   
   postData = ("T2:" + String(sensor2.getTempCByIndex(0)) + ",L2:" + String(analogRead(2)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
 
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
@@ -111,6 +117,9 @@ void loop ()
   postData = ("BT:" + String(RTC.getTemperature())+ ",CH:" + String(read_charge_status()) +",V:" + Volts);   //append it to the post data -- internal temperature, charging status, & voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
 
   ////////////////// Application finished... put to sleep ///////////////////
    //setup the interupt for sleep
@@ -176,12 +185,20 @@ int freeRam () {
 
 //start and join the lora network
 void JoinLora() {
+  int joinLimit = 0;
   /* start the radio */
   digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
   delay(1000);                                  // allow radio to power up
   do {                                          //join the lora network
     responseCode = mdot.join();                 //join the network and get the response code
-  } while (responseCode != 0);                  //continue if it joins
+    
+    //Debug feedback for the developer to double check the result of the join() instruction
+    debugSerial.print(F("SETUP : Join result: "));
+    debugSerial.println(String(responseCode));
+
+    delay(900);
+    
+  } while (responseCode != 0 && joinLimit++ < 15);                  //continue if it joins
 }
 
 //get the charging status
