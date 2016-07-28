@@ -115,12 +115,12 @@ void SleepNow() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   
   //Power Down routines
-  digitalWrite(POWER_BEE, LOW);             //turn the xbee port oFF -- turn on the radio
-  delay(1000);                              // allow radio to power down
+  digitalWrite(POWER_BEE, LOW);             //Turn the xbee port oFF -- turn on the radio
+  delay(1000);                              //Allow radio to power down
   
   cli(); 
-  sleep_enable();                           // Set sleep enable bit
-  sleep_bod_disable();                      // Disable brown out detection during sleep. Saves more power
+  sleep_enable();                           //Set sleep enable bit
+  sleep_bod_disable();                      //Disable brown out detection during sleep. Saves more power
   sei();
 
   //Debug feedback for the user
@@ -129,38 +129,38 @@ void SleepNow() {
   
   //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
   power_all_disable();                      //This shuts down ADC, TWI, SPI, Timers and USART
-  sleep_cpu();                              // Sleep the CPU as per the mode set earlier(power down) 
+  sleep_cpu();                              //Sleep the CPU as per the mode set earlier(power down) 
   
   /* WAIT FOR INTERUPT */
  
   //wake up the system
-  sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
+  sleep_disable();                          //Wakes up sleep and clears enable bit. Before this ISR would have executed
   power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
   delay(1000);                              //This delay is required to allow CPU to stabilize
   
   //Debug feedback for the user
   debugSerial.println(F("SLEEP : OK, OK.. I'm awake!"));
   
-  JoinLora(); //start and join the lora network
+  JoinLora();                               //Start and join the lora network
   delay(1000);
 }
 
-// check ram remaining
+//Check ram remaining
 int freeRam () {
   extern int __heap_start, *__brkval;
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 
-//start and join the lora network
+//Start and join the lora network
 void JoinLora() {
   int joinLimit = 0;
   int responseCode = -1;
   /* start the radio */
-  digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
-  delay(1000);                                  // allow radio to power up
-  do {                                          //join the lora network
-    responseCode = mdot.join();                 //join the network and get the response code
+  digitalWrite(POWER_BEE, HIGH);                //Turn the xbee port on -- turn on the radio
+  delay(1000);                                  //Allow radio to power up
+  do {                                          //Join the lora network
+    responseCode = mdot.join();                 //Join the network and get the response code
     
     //Debug feedback for the developer to double check the result of the join() instruction
     debugSerial.print(F("SETUP : Join result: "));
@@ -168,10 +168,14 @@ void JoinLora() {
 
     delay(900);
     
-  } while (responseCode != 0 && joinLimit++ < 5);                  //continue if it joins
+  } while (responseCode != 0 && joinLimit++ < 5);  //Continue if it joins, or tries too many times.
+
+  //TODO: Don't actually "simply continue" if it fails to join too many times. There's not point trying
+  //      to send data. I've left it like this because I always want to see the json, and fragmentation
+  //      for debugging.
 }
 
-//get the charging status
+//Get the charging status
 unsigned char read_charge_status(void) {
   unsigned char CH_Status=0;
   unsigned int ADC6=analogRead(6);
