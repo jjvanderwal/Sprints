@@ -43,14 +43,14 @@ void setup() {
   RTC.begin();
 
   //start the lora network
-  JoinLora();                            //start and join the lora network
+  JoinLora();                            //Start and join the lora network
 }
 
 //start the application
 void loop () 
 {
   int responseCode = -1;
-  String postData = "";                                         //define the initial post data
+  String postData = "";                                         //Define the initial post data
 
   //Build the message to send:
   String rtcTemp = F("BT:");
@@ -62,7 +62,7 @@ void loop ()
   postData += atTemp;
   postData += GetTemp();                                        //Get the temperature from the ATmega
 
-  int BatteryValue = analogRead(A7);                            // read the battery voltage
+  int BatteryValue = analogRead(A7);                            //Read the battery voltage
   float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;        //Voltage devider
   
   String volts = F(",V:");
@@ -72,34 +72,40 @@ void loop ()
   String charge = F(",CH:");
   postData += charge;
   postData += String(read_charge_status());
+
+  //Debug feedback for the developer to double check what the library will try to send over the LoRaWAN
+  debugSerial.print(F("MAIN  : "));
+  debugSerial.println(postData);
   
-  
-  debugSerial.println(postData);                                //for debugging purposes, show the data
-  responseCode = mdot.sendPairs(postData);                      // post the data
+  responseCode = mdot.sendPairs(postData);                      //Post the data
 
   //Debug feedback for the developer to double check what the result of the send
-  debugSerial.println("MAIN  : send result: " + String(responseCode));
+  debugSerial.print(F("MAIN  : Send result: "));
+  debugSerial.println(String(responseCode));
   
   ////////////////// Application finished... put to sleep ///////////////////
-   //setup the interupt for sleep
-  RTC.clearINTStatus();                                                                             //This function call is  a must to bring /INT pin HIGH after an interrupt.
-  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         // set the interrupt at (h,m,s)
-  attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
-
-  //Debug feedback for the user to double check how memory usage is being handled
-  debugSerial.print(F("Free ram: "));
-  debugSerial.println(String(freeRam()));
-    
   DateTime start = RTC.now();                                                                       //Get the current time
   interruptTime = DateTime(start.get() + 60);                                                       //Set the alarm clock, based on current time
+
+  //Debug feedback for the user to double check how memory usage is being handled
+  debugSerial.print(F("Main : Free ram    :"));
+  debugSerial.println(String(freeRam()));
 
   //Debug feedback for the user to double check what the time is, and when Arduino will wake up
   debugSerial.print(F("Time now     : "));
   debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
   debugSerial.print(F("Alarm set for: "));
   debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
+
+  //setup the interupt for sleep
+  RTC.clearINTStatus();                                                                             //This function call is  a must to bring /INT pin HIGH after an interrupt.
+  RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         //Set the interrupt at (h,m,s)
+  attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
   
   SleepNow();
+
+  debugSerial.print(F("Alarm set for: "));
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
