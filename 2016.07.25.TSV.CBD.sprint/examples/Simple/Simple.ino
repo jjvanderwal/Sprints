@@ -85,16 +85,16 @@ void loop ()
   
   ////////////////// Application finished... put to sleep ///////////////////
   DateTime start = RTC.now();                                                                       //Get the current time
-  interruptTime = DateTime(start.get() + 60);                                                       //Set the alarm clock, based on current time
+  interruptTime = DateTime(start.get() + 15);                                                       //Set the alarm clock, based on current time
 
   //Debug feedback for the user to double check how memory usage is being handled
-  debugSerial.print(F("Main : Free ram    :"));
+  debugSerial.print(F("MAIN  : Free ram    :"));
   debugSerial.println(String(freeRam()));
 
   //Debug feedback for the user to double check what the time is, and when Arduino will wake up
-  debugSerial.print(F("Time now     : "));
+  debugSerial.print(F("MAIN  : Time now     : "));
   debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
-  debugSerial.print(F("Alarm set for: "));
+  debugSerial.print(F("MAIN  : Alarm set for: "));
   debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
 
   //setup the interupt for sleep
@@ -103,9 +103,6 @@ void loop ()
   attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
   
   SleepNow();
-
-  debugSerial.print(F("Alarm set for: "));
-  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
@@ -127,8 +124,9 @@ void SleepNow() {
   sleep_enable();                           // Set sleep enable bit
   sleep_bod_disable();                      // Disable brown out detection during sleep. Saves more power
   sei();
-    
-  debugSerial.println("\nSleeping");        //debug: print the system is going to sleep
+
+  //Debug feedback for the user
+  debugSerial.println(F("SLEEP : Sleeping\n"));
   delay(10);                                //This delay is required to allow print to complete
   
   //Shut down all peripherals like ADC before sleep. Refer Atmega328 manual
@@ -140,11 +138,13 @@ void SleepNow() {
   //wake up the system
   sleep_disable();                          // Wakes up sleep and clears enable bit. Before this ISR would have executed
   power_all_enable();                       //This shuts enables ADC, TWI, SPI, Timers and USART
-  delay(1000);                                //This delay is required to allow CPU to stabilize
+  delay(1000);                              //This delay is required to allow CPU to stabilize
+  
+  //Debug feedback for the user
+  debugSerial.println(F("SLEEP : OK, OK.. I'm awake!"));
+  
   JoinLora(); //start and join the lora network
   delay(1000);
-  debugSerial.println("Awake from sleep");  //debug: print the system is awake 
-
 }
 
 // check ram remaining
