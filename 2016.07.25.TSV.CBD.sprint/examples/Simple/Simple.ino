@@ -83,7 +83,7 @@ void loop ()
   
   ////////////////// Application finished... put to sleep ///////////////////
   DateTime start = RTC.now();                                                                       //Get the current time
-  DateTime interruptTime = DateTime(start.get() + 15);                                                       //Set the alarm clock, based on current time
+  DateTime interruptTime = DateTime(start.get() + 300);                                             //Set the alarm clock, based on current time
 
   //Debug feedback for the user to double check how memory usage is being handled
   debugSerial.print(F("MAIN  : Free ram    :"));
