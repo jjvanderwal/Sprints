@@ -13,18 +13,18 @@
 //common libraries
 #include <LoRaAT.h>                     //Include LoRa AT libraray
 #include <SoftwareSerial.h>             //Software serial for debug
-#include <avr/sleep.h>                  // this is for low power sleep
-#include <avr/power.h>                  // this is for low power sleep
-#include <Wire.h>                       // required for sleep/low power
-#include "DS3231.h"                     // RTC
-#include <math.h>                       // required for rounding some of the data from the analog readout of the battery
+#include <avr/sleep.h>                  //For low power sleep
+#include <avr/power.h>                  //For low power sleep
+#include <Wire.h>
+#include "DS3231.h"                     //RTC
+#include <math.h>                       //For rounding some of the data from the analog readout of the battery
 
 //define and initialize some of the pins/types and setup variables
-SoftwareSerial debugSerial(10, 11);     // RX, TX
+SoftwareSerial debugSerial(10, 11);     //RX, TX
 LoRaAT mdot(0, &debugSerial);           //Instantiate a LoRaAT object
-int POWER_BEE = 5;                      // power_bee pin is 5 to turn on and off radio
-DS3231 RTC;                             // Create the DS3231 RTC interface object
-static DateTime interruptTime;          // this is the time to interupt sleep
+int POWER_BEE = 5;                      //POWER_BEE pin is 5 to turn on and off radio
+DS3231 RTC;                             //Create the DS3231 RTC interface object
+static DateTime interruptTime;          //Time to interupt sleep
 
 // setup the start
 void setup() {                                               
@@ -33,7 +33,7 @@ void setup() {
   mdot.begin(38400);                    //Begin (possibly amongst other things) opens serial comms with MDOT
 
   /*misc setup for low power sleep*/
-  pinMode(POWER_BEE, OUTPUT);           //set the pinmode to turn on and off the power to the radio
+  pinMode(POWER_BEE, OUTPUT);           //Set the pinmode to turn on and off the power to the radio
 
   /*Initialize INTR0 for accepting interrupts */
   PORTD |= 0x04; 
@@ -41,12 +41,6 @@ void setup() {
   
   Wire.begin();    
   RTC.begin();
-
-  attachInterrupt(0, INT0_ISR, FALLING); //Only LOW level interrupt can wake up from PWR_DOWN
-    
-  DateTime start = RTC.now();                                                                       //get the current time
-  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));  //debug: print the current time
-  interruptTime = DateTime(start.get() + 300);                                                       //Add 5 mins in seconds to start time
 
   //start the lora network
   JoinLora();                            //start and join the lora network
@@ -92,13 +86,16 @@ void loop ()
   RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
 
-  debugSerial.println("Free ram:"+String(freeRam()));                                                                        //debug: print amount of free ram
-  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
-  SleepNow();
-  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
-  DateTime start = RTC.now();                                                                                               //get the current time
-  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));                          //debug: print time
-  interruptTime = DateTime(start.get() + 300);                                                                             //decide the time for next interrupt, configure next interrupt  
+  debugSerial.println("Free ram:"+String(freeRam()));                                               //debug: print amount of free ram
+    
+  DateTime start = RTC.now();                                                                       //Get the current time
+  interruptTime = DateTime(start.get() + 300);                                                      //Add 5 mins in seconds to start time
+
+  //Debug feedback for the user to double check what the time is, and when Arduino will wake up
+  debugSerial.print(F("Time now     : "));
+  debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
+  debugSerial.print(F("Alarm set for: "));
+  debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
