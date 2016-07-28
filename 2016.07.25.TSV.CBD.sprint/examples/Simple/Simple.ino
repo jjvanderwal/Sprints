@@ -86,10 +86,12 @@ void loop ()
   RTC.enableInterrupts(interruptTime.hour(),interruptTime.minute(),interruptTime.second());         // set the interrupt at (h,m,s)
   attachInterrupt(0, INT0_ISR, FALLING);                                                            //Enable INT0 interrupt (as ISR disables interrupt). This strategy is required to handle LEVEL triggered interrupt
 
-  debugSerial.println("Free ram:"+String(freeRam()));                                               //debug: print amount of free ram
+  //Debug feedback for the user to double check how memory usage is being handled
+  debugSerial.print(F("Free ram: "));
+  debugSerial.println(String(freeRam()));
     
   DateTime start = RTC.now();                                                                       //Get the current time
-  interruptTime = DateTime(start.get() + 300);                                                      //Add 5 mins in seconds to start time
+  interruptTime = DateTime(start.get() + 60);                                                       //Set the alarm clock, based on current time
 
   //Debug feedback for the user to double check what the time is, and when Arduino will wake up
   debugSerial.print(F("Time now     : "));
@@ -104,7 +106,6 @@ void INT0_ISR()
   //Keep this as short as possible. Possibly avoid using function calls
   detachInterrupt(0); 
 }
-
 
 //define the sleepnow function
 void SleepNow() {
