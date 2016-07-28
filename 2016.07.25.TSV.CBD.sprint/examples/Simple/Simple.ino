@@ -59,12 +59,12 @@ void loop ()
   String postData = "";                                         //define the initial post data
 
   //Build the message to send:
-  String rtcTemp = F("T0:");
+  String rtcTemp = F("BT:");
   postData = rtcTemp;
   RTC.convertTemperature();                                     //Convert current RTC temperature into registers
   postData += RTC.getTemperature();
 
-  String atTemp = F(",T1:");
+  String atTemp = F(",AT:");
   postData += atTemp;
   postData += GetTemp();                                        //Get the temperature from the ATmega
 
