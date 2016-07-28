@@ -98,6 +98,8 @@ void loop ()
   debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));
   debugSerial.print(F("Alarm set for: "));
   debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));
+  
+  SleepNow();
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
