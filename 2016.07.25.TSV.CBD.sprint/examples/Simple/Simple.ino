@@ -24,7 +24,6 @@ SoftwareSerial debugSerial(10, 11);     //RX, TX
 LoRaAT mdot(0, &debugSerial);           //Instantiate a LoRaAT object
 int POWER_BEE = 5;                      //POWER_BEE pin is 5 to turn on and off radio
 DS3231 RTC;                             //Create the DS3231 RTC interface object
-static DateTime interruptTime;          //Time to interupt sleep
 
 // setup the start
 void setup() {                                               
@@ -62,10 +61,9 @@ void loop ()
   postData += atTemp;
   postData += GetTemp();                                        //Get the temperature from the ATmega
 
-  int BatteryValue = analogRead(A7);                            //Read the battery voltage
-  float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;        //Voltage devider
-  
   String volts = F(",V:");
+  int BatteryValue = analogRead(A7);                            //Read the battery voltage
+  float voltage = BatteryValue * (3.7 / 1024)* (10+2)/2;        //Voltage divider
   postData += volts;
   postData += String(round(voltage*100)/100);
 
@@ -85,7 +83,7 @@ void loop ()
   
   ////////////////// Application finished... put to sleep ///////////////////
   DateTime start = RTC.now();                                                                       //Get the current time
-  interruptTime = DateTime(start.get() + 15);                                                       //Set the alarm clock, based on current time
+  DateTime interruptTime = DateTime(start.get() + 15);                                                       //Set the alarm clock, based on current time
 
   //Debug feedback for the user to double check how memory usage is being handled
   debugSerial.print(F("MAIN  : Free ram    :"));
