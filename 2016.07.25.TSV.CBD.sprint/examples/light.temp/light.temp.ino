@@ -140,7 +140,7 @@ void loop ()
   debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
   DateTime start = RTC.now();                                                                                               //get the current time
   debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));                          //debug: print time
-  interruptTime = DateTime(interruptTime.get() + 300);                                                                      //decide the time for next interrupt, configure next interrupt  
+  interruptTime = DateTime(start.get() + 300);                                                                              //decide the time for next interrupt, configure next interrupt  
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
