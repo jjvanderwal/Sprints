@@ -49,6 +49,7 @@ DallasTemperature sensor1(&oneWire1);    // Pass our oneWire reference to Dallas
 DallasTemperature sensor2(&oneWire2);    // Pass our oneWire reference to Dallas Temperature.
 
 
+
 // setup the start
 void setup() {
                                                  
@@ -94,14 +95,20 @@ void loop ()
   sensor1.requestTemperatures();
   sensor2.requestTemperatures();
   
-  postData = ("T0:" + String(sensor0.getTempCByIndex(0)) + ",L0:" + String(analogRead(0)));
-  postData += (",T1:" + String(sensor1.getTempCByIndex(0)) + ",L1:" + String(analogRead(1)));
+  postData = ("T0:" + String(sensor0.getTempCByIndex(0)) + ",S0:" + String(analogRead(0)));
+  postData += (",T1:" + String(sensor1.getTempCByIndex(0)) + ",S1:" + String(analogRead(1)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
   
-  postData = ("T2:" + String(sensor2.getTempCByIndex(0)) + ",L2:" + String(analogRead(2)));
+  postData = ("T2:" + String(sensor2.getTempCByIndex(0)) + ",S2:" + String(analogRead(2)));
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
 
   /* END OF SECTION TO EDIT SENSOR DATA BEING COLLECTED */ 
 
@@ -111,6 +118,9 @@ void loop ()
   postData = ("BT:" + String(RTC.getTemperature())+ ",CH:" + String(read_charge_status()) +",V:" + Volts);   //append it to the post data -- internal temperature, charging status, & voltage
   debugSerial.println(postData);                                    //for debugging purposes, show the data
   responseCode = mdot.sendPairs(postData);                          // post the data
+
+  //Debug feedback for the developer to double check what the result of the send
+  debugSerial.println("MAIN  : send result: " + String(responseCode));
 
   ////////////////// Application finished... put to sleep ///////////////////
    //setup the interupt for sleep
@@ -124,7 +134,7 @@ void loop ()
   debugSerial.println(String(interruptTime.hour())+":"+String(interruptTime.minute())+":"+String(interruptTime.second()));  //debug: print time
   DateTime start = RTC.now();                                                                                               //get the current time
   debugSerial.println(String(start.hour())+":"+String(start.minute())+":"+String(start.second()));                          //debug: print time
-  interruptTime = DateTime(interruptTime.get() + 300);                                                                      //decide the time for next interrupt, configure next interrupt  
+  interruptTime = DateTime(start.get() + 300);                                                                      //decide the time for next interrupt, configure next interrupt  
 } 
 
 //Interrupt service routine for external interrupt on INT0 pin conntected to DS3231 /INT
@@ -176,12 +186,20 @@ int freeRam () {
 
 //start and join the lora network
 void JoinLora() {
+  int joinLimit = 0;
   /* start the radio */
   digitalWrite(POWER_BEE, HIGH);                //turn the xbee port on -- turn on the radio
   delay(1000);                                  // allow radio to power up
   do {                                          //join the lora network
     responseCode = mdot.join();                 //join the network and get the response code
-  } while (responseCode != 0);                  //continue if it joins
+    
+    //Debug feedback for the developer to double check the result of the join() instruction
+    debugSerial.print(F("SETUP : Join result: "));
+    debugSerial.println(String(responseCode));
+
+    delay(900);
+    
+  } while (responseCode != 0 && joinLimit++ < 5);                  //continue if it joins
 }
 
 //get the charging status
